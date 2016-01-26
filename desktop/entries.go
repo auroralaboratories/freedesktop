@@ -110,7 +110,7 @@ func (self *EntrySet) SearchByExec(pattern string) []Entry {
     return results
 }
 
-func (self *EntrySet) LaunchApp(key string) error {
+func (self *EntrySet) LaunchEntry(key string) error {
     if entry, ok := self.Entries[key]; ok {
         return entry.Launch()
     }else{
