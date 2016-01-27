@@ -48,8 +48,6 @@ func GetDataFilename(name string) (string, error) {
     for _, pathPrefix := range GetXdgDataPaths() {
         tryPath := path.Join(pathPrefix, name)
 
-        // log.Warnf("Trying %s", tryPath)
-
         if util.FileExistsAndIsReadable(tryPath) {
             return tryPath, nil
         }
