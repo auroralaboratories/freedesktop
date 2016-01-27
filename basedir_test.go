@@ -48,3 +48,39 @@ func TestGetDataFilename(t *testing.T) {
     }
 }
 
+
+
+func TestGetConfigFilename(t *testing.T) {
+    config1 := `testing/xdg-basedir/home/gotest/.config/my-app/config1.txt`
+    config2 := `testing/xdg-basedir/etc/xdg/my-app/config2.txt`
+
+//  mock home directory
+    XdgConfigHome = `testing/xdg-basedir/home/gotest/.config`
+
+//  mock config dirs
+    XdgConfigDirs = `testing/xdg-basedir/etc/xdg`
+
+//  test for a file that exists in all directories
+    if v, err := GetConfigFilename(`my-app/config1.txt`); err == nil {
+        if v != config1 {
+            t.Errorf("config1: expected '%s', got '%s", config1, v)
+        }
+    }else{
+        t.Errorf("config1: %v", err)
+    }
+
+//  test for a file that exists only in global directories
+    if v, err := GetConfigFilename(`my-app/config2.txt`); err == nil {
+        if v != config2 {
+            t.Errorf("config2: expected '%s', got '%s", config2, v)
+        }
+    }else{
+        t.Errorf("config2: %v", err)
+    }
+
+//  test for a file that does not exist
+    if v, err := GetConfigFilename(`nonexistent-dir/nothing.file`); err == nil {
+        t.Errorf("File exists, but should not: %s", v)
+    }
+}
+

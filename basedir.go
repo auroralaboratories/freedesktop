@@ -68,7 +68,20 @@ func GetDataFilename(name string) (string, error) {
 // An error will be returned if a file could not be located or is not readable.
 //
 func GetConfigFilename(name string) (string, error) {
-    return ``, fmt.Errorf("Not implemented")
+//  clean up incoming path segment
+    name = strings.TrimPrefix(name, `/`)
+
+//  try to open the file path read-only, proceed until successful or last-error
+    for _, pathPrefix := range GetXdgConfigPaths() {
+        tryPath := path.Join(pathPrefix, name)
+
+        if util.FileExistsAndIsReadable(tryPath) {
+            return tryPath, nil
+        }
+    }
+
+//  if we got here, we didn't locate the file; return error
+    return ``, fmt.Errorf("Unable to locate XDG config file '%s' in any configured path", name)
 }
 
 // Returns the filename of a cache file located in a standard XDG location.
