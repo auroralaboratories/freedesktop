@@ -1,8 +1,50 @@
 package freedesktop
 
 import (
+    "strings"
     "testing"
 )
+
+
+func TestGetXdgDataPaths(t *testing.T) {
+    have := GetXdgDataPaths()
+    want := []string{
+        XdgDataHome,
+    }
+
+    want = append(want, strings.Split(XdgDataDirs, `:`)...)
+
+    if len(have) == len(want) {
+        for i, p := range have {
+            if strings.TrimSuffix(p, `/`) != strings.TrimSuffix(want[i], `/`) {
+                t.Errorf("data paths: Path %d: have %s, want %s", i, p, want[i])
+            }
+        }
+    }else{
+        t.Errorf("data paths: have: %+v, want: %+v", have, want)
+    }
+}
+
+
+func TestGetXdgConfigPaths(t *testing.T) {
+    have := GetXdgConfigPaths()
+    want := []string{
+        XdgConfigHome,
+    }
+
+    want = append(want, strings.Split(XdgConfigDirs, `:`)...)
+
+    if len(have) == len(want) {
+        for i, p := range have {
+            if strings.TrimSuffix(p, `/`) != strings.TrimSuffix(want[i], `/`) {
+                t.Errorf("config paths: Path %d: have %s, want %s", i, p, want[i])
+            }
+        }
+    }else{
+        t.Errorf("config paths: have: %+v, want: %+v", have, want)
+    }
+}
+
 
 func TestGetDataFilename(t *testing.T) {
     data1 := `testing/xdg-basedir/home/gotest/.local/share/my-app/data1.file`
@@ -47,7 +89,6 @@ func TestGetDataFilename(t *testing.T) {
         t.Errorf("File exists, but should not: %s", v)
     }
 }
-
 
 
 func TestGetConfigFilename(t *testing.T) {
