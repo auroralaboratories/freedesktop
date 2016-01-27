@@ -14,19 +14,19 @@ import (
     // log "github.com/Sirupsen/logrus"
 )
 
-// the base directory relative to which user specific data files should be stored
+// The base directory relative to which user specific data files should be stored
 var XdgDataHome   string = util.Getenv(`XDG_DATA_HOME`,   os.ExpandEnv("${HOME}/.local/share"))
 
-// the preference-ordered set of base directories to search for data files in addition to the XdgDataHome base directory
+// The preference-ordered set of base directories to search for data files in addition to the XdgDataHome base directory
 var XdgDataDirs   string = util.Getenv(`XDG_DATA_DIRS`,   `/usr/local/share/:/usr/share/`)
 
-// the base directory relative to which user specific configuration files should be stored
+// The base directory relative to which user specific configuration files should be stored
 var XdgConfigHome string = util.Getenv(`XDG_CONFIG_HOME`, os.ExpandEnv("${HOME}/.config"))
 
-// the preference-ordered set of base directories to search for configuration files in addition to the XdgConfigHome base directory
+// The preference-ordered set of base directories to search for configuration files in addition to the XdgConfigHome base directory
 var XdgConfigDirs string = util.Getenv(`XDG_CONFIG_DIRS`, `/etc/xdg`)
 
-// the base directory relative to which user specific non-essential data files should be stored
+// The base directory relative to which user specific non-essential data files should be stored
 var XdgCacheHome  string = util.Getenv(`XDG_CACHE_HOME`,  os.ExpandEnv("${HOME}/.cache"))
 
 
