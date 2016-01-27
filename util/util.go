@@ -11,3 +11,9 @@ func Getenv(name string, fallback string) string {
         return rv
     }
 }
+
+func FileExistsAndIsReadable(name string) bool {
+    file, err := os.Open(name)
+    defer file.Close()
+    return (err == nil)
+}

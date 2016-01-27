@@ -8,7 +8,10 @@ package freedesktop
 import (
     "fmt"
     "os"
+    "path"
+    "strings"
     "github.com/auroralaboratories/freedesktop/util"
+    // log "github.com/Sirupsen/logrus"
 )
 
 // the base directory relative to which user specific data files should be stored
@@ -38,7 +41,22 @@ var XdgCacheHome  string = util.Getenv(`XDG_CACHE_HOME`,  os.ExpandEnv("${HOME}/
 // An error will be returned if a file could not be located or is not readable.
 //
 func GetDataFilename(name string) (string, error) {
-    return ``, fmt.Errorf("Not implemented")
+//  clean up incoming path segment
+    name = strings.TrimPrefix(name, `/`)
+
+//  try to open the file path read-only, proceed until successful or last-error
+    for _, pathPrefix := range GetXdgDataPaths() {
+        tryPath := path.Join(pathPrefix, name)
+
+        // log.Warnf("Trying %s", tryPath)
+
+        if util.FileExistsAndIsReadable(tryPath) {
+            return tryPath, nil
+        }
+    }
+
+//  if we got here, we didn't locate the file; return error
+    return ``, fmt.Errorf("Unable to locate XDG data file '%s' in any configured path", name)
 }
 
 // Returns the filename of a config file located in a standard XDG location.
@@ -66,4 +84,35 @@ func GetConfigFilename(name string) (string, error) {
 //
 func GetCacheFilename(name string) (string, error) {
     return ``, fmt.Errorf("Not implemented")
+}
+
+
+// Return all paths to search for XDG data files
+func GetXdgDataPaths() []string {
+    pathsToTry := make([]string, 0)
+
+    if XdgDataHome != `` {
+        pathsToTry = append(pathsToTry, strings.TrimSuffix(XdgDataHome, `/`))
+    }
+
+    for _, dir := range strings.Split(XdgDataDirs, `:`) {
+        pathsToTry = append(pathsToTry, strings.TrimSuffix(dir, `/`))
+    }
+
+    return pathsToTry
+}
+
+// Return all paths to search for XDG config files
+func GetXdgConfigPaths() []string {
+    pathsToTry := make([]string, 0)
+
+    if XdgConfigHome != `` {
+        pathsToTry = append(pathsToTry, strings.TrimSuffix(XdgConfigHome, `/`))
+    }
+
+    for _, dir := range strings.Split(XdgConfigDirs, `:`) {
+        pathsToTry = append(pathsToTry, strings.TrimSuffix(dir, `/`))
+    }
+
+    return pathsToTry
 }
