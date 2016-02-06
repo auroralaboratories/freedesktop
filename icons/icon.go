@@ -1,20 +1,74 @@
 package icons
 
+import (
+    "path/filepath"
+    "strings"
+
+    "github.com/vaughan0/go-ini"
+)
+
 type Icon struct {
-    Context  *ThemeContext
-    Filename string
-    Theme    *Theme
+    Context               IconContext
+    Filename              string
+    Name                  string
+    Theme                 *Theme
+    DisplayName           string
+    EmbeddedTextRectangle *Rectangle
+    AttachPoints          []Point
+
+
+    dataFilename          string
 }
 
 func NewIcon(filename string, theme *Theme) *Icon {
-    return &Icon{
-        Filename: filename,
-        Theme:    theme,
+    rv := &Icon{
+        Filename:     filename,
+        Name:         strings.TrimSuffix(filepath.Base(filename), filepath.Ext(filename)),
+        Theme:        theme,
+        AttachPoints: make([]Point, 0),
     }
+
+    rv.DisplayName = rv.Name
+
+    return rv
 }
 
 
+func (self *Icon) Size() int {
+    if self.Context.IsValid() {
+        return self.Context.Size
+    }else{
+        return -1
+    }
+}
+
+func (self *Icon) HasDataFile() bool {
+    return (self.dataFilename != ``)
+}
+
 func (self *Icon) Refresh() error {
+    dataFilename := strings.TrimSuffix(self.Filename, filepath.Ext(self.Filename)) + `.icon`
+
+    if iconData, err := ini.LoadFile(dataFilename); err == nil {
+        self.dataFilename = dataFilename
+
+        if d, ok := iconData[`Icon Data`]; ok {
+            if v, ok := d[`DisplayName`]; ok {
+                self.DisplayName = v
+            }
+
+            if v, ok := d[`EmbeddedTextRectangle`]; ok {
+                if rect, err := CreateRectangleFromString(v); err == nil {
+                    self.EmbeddedTextRectangle = rect
+                }
+            }
+
+            if v, ok := d[`AttachPoints`]; ok {
+                self.AttachPoints = CreatePointsFromString(v)
+            }
+        }
+    }
+
     return nil
 }
 

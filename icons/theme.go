@@ -17,25 +17,9 @@ const (
     DEFAULT_ICONTHEME_INHERIT    = `hicolor`
 )
 
-type ThemeContextType int
-const (
-    ThemeContextThreshold ThemeContextType = 0
-    ThemeContextFixed                      = 1
-    ThemeContextScalable                   = 2
-)
-
-type ThemeContext struct {
-    Size      int
-    Context   string
-    Type      ThemeContextType
-    MaxSize   int               // Type=ThemeContextScalable
-    MinSize   int               // Type=ThemeContextScalable
-    Threshold int               // Type=ThemeContextThreshold
-}
-
 type Theme struct {
     Comment      string
-    Contexts     map[string]ThemeContext
+    Contexts     map[string]IconContext
     Directories  []string
     Example      string
     Hidden       bool
@@ -45,15 +29,19 @@ type Theme struct {
     InternalName string
     Name         string
     Path         string
+
+    iconIndex    map[string]*Icon
 }
 
 func NewTheme(themePath string) *Theme {
     return &Theme{
-        Contexts:  make(map[string]ThemeContext),
+        Contexts:  make(map[string]IconContext),
         Icons:     make([]*Icon, 0),
         IndexFile: DEFAULT_ICONTHEME_INDEX_FILE,
         Inherits:  make([]string, 0),
         Path:      themePath,
+
+        iconIndex: make(map[string]*Icon),
     }
 }
 
@@ -103,21 +91,21 @@ func (self *Theme) refreshThemeDefinition() error {
 
                 for _, directory := range self.Directories {
                     if contextConfig, ok := themeIndex[directory]; ok {
-                        context := ThemeContext{}
+                        context := IconContext{}
 
                         if v, err := stringutil.ConvertToInteger(contextConfig[`Size`]); err == nil {
                             context.Size = int(v)
                         }
 
                         if v, ok := contextConfig[`Context`]; ok {
-                            context.Context = v
+                            context.Name = v
                         }else{
                             continue
                         }
 
                         switch strings.ToLower(contextConfig[`Type`]) {
                         case `fixed`:
-                            context.Type = ThemeContextFixed
+                            context.Type = IconContextFixed
 
                             if v, err := stringutil.ConvertToInteger(contextConfig[`MinSize`]); err == nil {
                                 context.MinSize = int(v)
@@ -128,10 +116,10 @@ func (self *Theme) refreshThemeDefinition() error {
                             }
 
                         case `scalable`:
-                            context.Type = ThemeContextScalable
+                            context.Type = IconContextScalable
 
                         default:
-                            context.Type = ThemeContextThreshold
+                            context.Type = IconContextThreshold
 
                             if v, err := stringutil.ConvertToInteger(contextConfig[`Threshold`]); err == nil {
                                 context.Threshold = int(v)
@@ -154,6 +142,7 @@ func (self *Theme) refreshThemeDefinition() error {
 }
 
 func (self *Theme) refreshIcons() error {
+//  populate icons
     for _, directory := range self.Directories {
         iconBaseDir := path.Join(self.Path, directory)
 
@@ -165,10 +154,34 @@ func (self *Theme) refreshIcons() error {
                         icon := NewIcon(iconFilename, self)
 
                         if context, ok := self.Contexts[directory]; ok {
-                            icon.Context = &context
+                            icon.Context = context
                         }
 
                         if err := icon.Refresh(); err == nil {
+                        //  populate index keyed on name alone
+                            if _, ok := self.iconIndex[icon.Name]; !ok {
+                                // log.Printf("IDX %s -> %s", self.InternalName, icon.Name)
+                                self.iconIndex[icon.Name] = icon
+                            }
+
+                        //  if an appropriate context was found...
+                            if icon.Context.IsValid() {
+                                indexKey := icon.Name
+
+                                switch icon.Context.Type {
+                                case IconContextScalable:
+                                    indexKey = indexKey + `:scalable`
+                                default:
+                                    indexKey = fmt.Sprintf("%s:%d", indexKey, icon.Context.Size)
+                                }
+
+                            //  populate index keyed on name-size
+                                if _, ok := self.iconIndex[indexKey]; !ok {
+                                    // log.Printf("IDX %s -> %s", self.InternalName, indexKey)
+                                    self.iconIndex[indexKey] = icon
+                                }
+                            }
+
                             self.Icons = append(self.Icons, icon)
                         }else{
                             return err
@@ -198,6 +211,22 @@ func (self *Theme) refreshIcons() error {
 //  icon that matches the name. If that fails we finally fall back on unthemed icons. If we fail to find any icon at
 //  all it is up to the application to pick a good fallback, as the correct choice depends on the context.
 //
-// func (self *Theme) FindIcon(name string, size int) (Icon, bool) {
-//     if , err := filepath.Glob(path.Join(self.Path, `*`, fmt.Sprintf())); err == nil {
-// }
+func (self *Theme) FindIcon(name string, size int) (*Icon, bool) {
+    var indexKey string
+
+    if size <= 0 {
+        indexKey = fmt.Sprintf("%s:scalable", name)
+    }else{
+        indexKey = fmt.Sprintf("%s:%d", name, size)
+    }
+
+    if icon, ok := self.iconIndex[indexKey]; ok {
+        return icon, true
+    }else{
+        if icon, ok := self.iconIndex[name]; ok {
+            return icon, true
+        }
+    }
+
+    return nil, false
+}
