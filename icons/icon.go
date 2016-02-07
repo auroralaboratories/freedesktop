@@ -2,7 +2,9 @@ package icons
 
 import (
     "fmt"
+    "io"
     "math"
+    "os"
     "path/filepath"
     "strings"
 
@@ -10,6 +12,8 @@ import (
 )
 
 type Icon struct {
+    io.Reader
+
     Context               IconContext
     Filename              string
     Name                  string
@@ -21,6 +25,7 @@ type Icon struct {
 
 
     dataFilename          string
+    fileHandle            *os.File
 }
 
 // Allocate a new icon from a given filename and theme instance
@@ -137,4 +142,34 @@ func (self *Icon) DistanceFromSize(size int) int {
 
 //  fallback to zero distance
     return 0
+}
+
+func (self *Icon) Open() (*os.File, error) {
+    if file, err := os.Open(self.Filename); err == nil {
+        self.fileHandle = file
+        return self.fileHandle, nil
+    }else{
+        return nil, err
+    }
+}
+
+func (self *Icon) Read(buffer []byte) (int, error) {
+    if self.fileHandle == nil {
+        if _, err := self.Open(); err != nil {
+            return 0, err
+        }
+    }
+
+
+    return self.fileHandle.Read(buffer)
+}
+
+func (self *Icon) Close() error {
+    if self.fileHandle == nil {
+        return fmt.Errorf("Cannot close unopened file")
+    }
+
+    err := self.fileHandle.Close()
+    self.fileHandle = nil
+    return err
 }
