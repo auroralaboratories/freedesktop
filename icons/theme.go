@@ -28,27 +28,27 @@ type Theme struct {
     Inherits     []string
     InternalName string
     Name         string
-    Path         string
+    ThemeDirs    []string
 
-    iconIndex    map[string]*Icon
+    loadedDef    bool
 }
 
-func NewTheme(themePath string) *Theme {
+func NewTheme(internalName string) *Theme {
     return &Theme{
-        Contexts:  make(map[string]IconContext),
-        Icons:     make([]*Icon, 0),
-        IndexFile: DEFAULT_ICONTHEME_INDEX_FILE,
-        Inherits:  make([]string, 0),
-        Path:      themePath,
-
-        iconIndex: make(map[string]*Icon),
+        Contexts:     make(map[string]IconContext),
+        Icons:        make([]*Icon, 0),
+        IndexFile:    DEFAULT_ICONTHEME_INDEX_FILE,
+        Inherits:     make([]string, 0),
+        InternalName: internalName,
+        Name:         internalName,
+        ThemeDirs:    GetIconThemePaths(),
     }
 }
 
 
 func (self *Theme) Refresh() error {
-    if self.Path == `` {
-        return fmt.Errorf("Cannot refresh theme without a given path")
+    if self.InternalName == `` {
+        return fmt.Errorf("Cannot refresh theme without an internal name")
     }
 
     if err := self.refreshThemeDefinition(); err != nil {
@@ -63,79 +63,145 @@ func (self *Theme) Refresh() error {
 }
 
 func (self *Theme) refreshThemeDefinition() error {
-    themeIndexFilename := path.Join(self.Path, self.IndexFile)
+    for _, themeDir := range self.ThemeDirs {
+        themeIndexFilename := path.Join(themeDir, self.InternalName, self.IndexFile)
 
-    if themeIndex, err := ini.LoadFile(themeIndexFilename); err == nil {
-        if config, ok := themeIndex[`Icon Theme`]; ok {
-            self.InternalName = path.Base(path.Dir(themeIndexFilename))
+        if themeIndex, err := ini.LoadFile(themeIndexFilename); err == nil {
+            if config, ok := themeIndex[`Icon Theme`]; ok {
+                if v, ok := config[`Name`]; ok {
+                    self.Name = v
+                }
 
-            if v, ok := config[`Name`]; ok {
-                self.Name = v
+                self.Inherits = strings.Split(config[`Inherits`], `,`)
+
+                if len(self.Inherits) == 0 {
+                    self.Inherits = []string{ DEFAULT_ICONTHEME_INHERIT }
+                }
+
+                self.Comment  = config[`Comment`]
+                self.Example  = config[`Example`]
+
+                if v, ok := config[`Hidden`]; ok {
+                    self.Hidden = (v == `true`)
+                }
+
+                if v, ok := config[`Directories`]; ok {
+                    self.Directories = strings.Split(v, `,`)
+
+                    for _, directory := range self.Directories {
+                        if contextConfig, ok := themeIndex[directory]; ok {
+                            context := IconContext{
+                                Subdirectory: directory,
+                            }
+
+                            if v, err := stringutil.ConvertToInteger(contextConfig[`Size`]); err == nil {
+                                context.Size = int(v)
+                            }
+
+                            if v, ok := contextConfig[`Context`]; ok {
+                                context.Name = v
+                            }
+
+                            context.MinSize   = context.Size
+                            context.MaxSize   = context.Size
+                            context.Threshold = DEFAULT_ICON_CONTEXT_THRESHOLD
+
+                            switch strings.ToLower(contextConfig[`Type`]) {
+                            case `fixed`:
+                                context.Type      = IconContextFixed
+
+                                if minSize, ok := contextConfig[`MinSize`]; ok {
+                                    if v, err := stringutil.ConvertToInteger(minSize); err == nil {
+                                        context.MinSize = int(v)
+                                    }
+                                }
+
+                                if maxSize, ok := contextConfig[`MaxSize`]; ok {
+                                    if v, err := stringutil.ConvertToInteger(maxSize); err == nil {
+                                        context.MaxSize = int(v)
+                                    }
+                                }
+
+                            case `scalable`:
+                                context.Type = IconContextScalable
+
+                            default:
+                                context.Type      = IconContextThreshold
+
+                                if threshold, ok := contextConfig[`Threshold`]; ok {
+                                    if v, err := stringutil.ConvertToInteger(threshold); err == nil {
+                                        context.Threshold = int(v)
+                                    }
+                                }
+                            }
+
+                            self.Contexts[directory] = context
+                        }
+                    }
+                }
+
+            }else{
+                return fmt.Errorf("Cannot load theme at %s: missing [Icon Theme] section", themeIndexFilename)
             }
 
-            self.Inherits = strings.Split(config[`Inherits`], `,`)
+            self.loadedDef = true
+            break
+        }
+    }
 
-            if len(self.Inherits) == 0 {
-                self.Inherits = []string{ DEFAULT_ICONTHEME_INHERIT }
-            }
+    if !self.loadedDef {
+        if err := self.generateThemeDefinition(); err != nil {
+            return fmt.Errorf("Unable to find a theme definition file for '%s' in any directories", self.InternalName)
+        }
+    }
 
-            self.Comment  = config[`Comment`]
-            self.Example  = config[`Example`]
+    return nil
+}
 
-            if v, ok := config[`Hidden`]; ok {
-                self.Hidden = (v == `true`)
-            }
+func (self *Theme) generateThemeDefinition() error {
+    for _, themeDir := range self.ThemeDirs {
+    //  glob for all sub-subdirs in a candidate directory: <base>/<name>/*/*
+    //      e.g.:  /usr/share/icons/hicolor/apps/16
+    //
+        candidateDir := path.Join(themeDir, self.InternalName)
 
-            if v, ok := config[`Directories`]; ok {
-                self.Directories = strings.Split(v, `,`)
+        if files, err := filepath.Glob(path.Join(candidateDir, `*/*`)); err == nil {
+            for _, filename := range files {
+            //  verify we have a directory
+                if stat, err := os.Stat(filename); err == nil && stat.IsDir() {
+                    themeSubdir := strings.TrimPrefix(strings.TrimPrefix(filename, candidateDir), `/`)
+                    self.Directories = append(self.Directories, themeSubdir)
 
-                for _, directory := range self.Directories {
-                    if contextConfig, ok := themeIndex[directory]; ok {
-                        context := IconContext{}
+                //  try to figure out the context of this subdirectory
+                    if parts := strings.SplitN(themeSubdir, `/`, 2); len(parts) == 2 {
+                        sizeParts := strings.Split(parts[1], `x`)
+                        context := IconContext{
+                            Subdirectory: themeSubdir,
+                            Threshold:    DEFAULT_ICON_CONTEXT_THRESHOLD,
+                        }
 
-                        if v, err := stringutil.ConvertToInteger(contextConfig[`Size`]); err == nil {
+                        if sizeParts[0] == `scalable` {
+                            context.Type    = IconContextScalable
+                            context.Size    = DEFAULT_ICON_CONTEXT_SCALABLE_SIZE
+                            context.MinSize = DEFAULT_ICON_CONTEXT_SCALABLE_MIN
+                            context.MaxSize = DEFAULT_ICON_CONTEXT_SCALABLE_MAX
+
+                        }else if v, err := stringutil.ConvertToInteger(sizeParts[0]); err == nil {
+                            context.Type = IconContextFixed
                             context.Size = int(v)
                         }
 
-                        if v, ok := contextConfig[`Context`]; ok {
-                            context.Name = v
-                        }else{
-                            continue
-                        }
-
-                        switch strings.ToLower(contextConfig[`Type`]) {
-                        case `fixed`:
-                            context.Type = IconContextFixed
-
-                            if v, err := stringutil.ConvertToInteger(contextConfig[`MinSize`]); err == nil {
-                                context.MinSize = int(v)
-                            }
-
-                            if v, err := stringutil.ConvertToInteger(contextConfig[`MaxSize`]); err == nil {
-                                context.MaxSize = int(v)
-                            }
-
-                        case `scalable`:
-                            context.Type = IconContextScalable
-
-                        default:
-                            context.Type = IconContextThreshold
-
-                            if v, err := stringutil.ConvertToInteger(contextConfig[`Threshold`]); err == nil {
-                                context.Threshold = int(v)
-                            }
-                        }
-
-                        self.Contexts[directory] = context
+                        self.Contexts[themeSubdir] = context
                     }
                 }
             }
-
-        }else{
-            return fmt.Errorf("Cannot load theme at %s: missing [Icon Theme] section", themeIndexFilename)
         }
-    }else{
-        return err
+    }
+
+//  if we got to this point and still don't have any directories in our list,
+//  give up. we really, really tried....
+    if len(self.Directories) == 0 {
+        return fmt.Errorf("Unable to generate theme definition")
     }
 
     return nil
@@ -143,48 +209,26 @@ func (self *Theme) refreshThemeDefinition() error {
 
 func (self *Theme) refreshIcons() error {
 //  populate icons
-    for _, directory := range self.Directories {
-        iconBaseDir := path.Join(self.Path, directory)
+    for _, themeDir := range self.ThemeDirs {
+        for _, directory := range self.Directories {
+            iconBaseDir := path.Join(themeDir, self.InternalName, directory)
 
-        if stat, err := os.Stat(iconBaseDir); err == nil && stat.IsDir() {
-            if files, err := filepath.Glob(path.Join(iconBaseDir, `*.*`)); err == nil {
-                for _, iconFilename := range files {
-                    switch filepath.Ext(iconFilename) {
-                    case `.png`, `.xpm`, `.svg`:
-                        icon := NewIcon(iconFilename, self)
+            if stat, err := os.Stat(iconBaseDir); err == nil && stat.IsDir() {
+                if files, err := filepath.Glob(path.Join(iconBaseDir, `*.*`)); err == nil {
+                    for _, iconFilename := range files {
+                        switch filepath.Ext(iconFilename) {
+                        case `.png`, `.svg`, `.xpm`:
+                            icon := NewIcon(iconFilename, self)
 
-                        if context, ok := self.Contexts[directory]; ok {
-                            icon.Context = context
-                        }
-
-                        if err := icon.Refresh(); err == nil {
-                        //  populate index keyed on name alone
-                            if _, ok := self.iconIndex[icon.Name]; !ok {
-                                // log.Printf("IDX %s -> %s", self.InternalName, icon.Name)
-                                self.iconIndex[icon.Name] = icon
+                            if context, ok := self.Contexts[directory]; ok {
+                                icon.Context = context
                             }
 
-                        //  if an appropriate context was found...
-                            if icon.Context.IsValid() {
-                                indexKey := icon.Name
-
-                                switch icon.Context.Type {
-                                case IconContextScalable:
-                                    indexKey = indexKey + `:scalable`
-                                default:
-                                    indexKey = fmt.Sprintf("%s:%d", indexKey, icon.Context.Size)
-                                }
-
-                            //  populate index keyed on name-size
-                                if _, ok := self.iconIndex[indexKey]; !ok {
-                                    // log.Printf("IDX %s -> %s", self.InternalName, indexKey)
-                                    self.iconIndex[indexKey] = icon
-                                }
+                            if err := icon.Refresh(); err == nil {
+                                self.Icons = append(self.Icons, icon)
+                            }else{
+                                return err
                             }
-
-                            self.Icons = append(self.Icons, icon)
-                        }else{
-                            return err
                         }
                     }
                 }
@@ -211,22 +255,53 @@ func (self *Theme) refreshIcons() error {
 //  icon that matches the name. If that fails we finally fall back on unthemed icons. If we fail to find any icon at
 //  all it is up to the application to pick a good fallback, as the correct choice depends on the context.
 //
-func (self *Theme) FindIcon(name string, size int) (*Icon, bool) {
-    var indexKey string
+func (self *Theme) FindIcon(names []string, size int) (*Icon, bool) {
+//  search through a list of given names
+    for _, name := range names {
+    //  search for a matching icon (size given)
+        for _, icon := range self.Icons {
+            if icon.IsMatch(name, size) {
+                return icon, true
+            }
+        }
 
-    if size <= 0 {
-        indexKey = fmt.Sprintf("%s:scalable", name)
-    }else{
-        indexKey = fmt.Sprintf("%s:%d", name, size)
-    }
+    //  min size starts at MAXINT
+        minimalSize := int(^uint(0)>>1)
 
-    if icon, ok := self.iconIndex[indexKey]; ok {
-        return icon, true
-    }else{
-        if icon, ok := self.iconIndex[name]; ok {
-            return icon, true
+        var closestIcon *Icon
+
+    //  search for a matching icon (name only)
+        for _, icon := range self.Icons {
+            if icon.Name == name {
+                if distance := icon.DistanceFromSize(size); distance < minimalSize {
+                    minimalSize = distance
+                    closestIcon = icon
+                }
+            }
+        }
+
+        if closestIcon != nil {
+            return closestIcon, true
         }
     }
 
     return nil, false
 }
+
+// DirectorySizeDistance(subdir, size) {
+//   read Type and size data from subdir
+//   if Type is Fixed
+//     return abs(Size - iconsize)
+//   if Type is Scaled
+//     if iconsize < MinSize
+//         return MinSize - iconsize
+//     if iconsize > MaxSize
+//         return iconsize - MaxSize
+//     return 0
+//   if Type is Threshold
+//     if iconsize < Size - Threshold
+//         return MinSize - iconsize
+//     if iconsize > Size + Threshold
+//         return iconsize - MaxSize
+//     return 0
+// }

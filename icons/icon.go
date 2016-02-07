@@ -1,6 +1,8 @@
 package icons
 
 import (
+    "fmt"
+    "math"
     "path/filepath"
     "strings"
 
@@ -11,6 +13,7 @@ type Icon struct {
     Context               IconContext
     Filename              string
     Name                  string
+    Type                  string
     Theme                 *Theme
     DisplayName           string
     EmbeddedTextRectangle *Rectangle
@@ -20,6 +23,8 @@ type Icon struct {
     dataFilename          string
 }
 
+// Allocate a new icon from a given filename and theme instance
+//
 func NewIcon(filename string, theme *Theme) *Icon {
     rv := &Icon{
         Filename:     filename,
@@ -29,24 +34,26 @@ func NewIcon(filename string, theme *Theme) *Icon {
     }
 
     rv.DisplayName = rv.Name
+    rv.Type        = strings.ToLower(strings.TrimPrefix(filepath.Ext(rv.Filename), `.`))
 
     return rv
 }
 
 
-func (self *Icon) Size() int {
-    if self.Context.IsValid() {
-        return self.Context.Size
-    }else{
-        return -1
-    }
-}
-
+// Return whether the icon has an associated Icon Data file
+//
 func (self *Icon) HasDataFile() bool {
     return (self.dataFilename != ``)
 }
 
+
+// Reload the icon's data from disk (if present)
+//
 func (self *Icon) Refresh() error {
+    if !self.Context.IsValid() {
+        return fmt.Errorf("Cannot process icon '%s' in theme '%s' without a valid theme context", self.Name, self.Theme.Name)
+    }
+
     dataFilename := strings.TrimSuffix(self.Filename, filepath.Ext(self.Filename)) + `.icon`
 
     if iconData, err := ini.LoadFile(dataFilename); err == nil {
@@ -72,43 +79,62 @@ func (self *Icon) Refresh() error {
     return nil
 }
 
-//  Icon Directories
-//      $HOME/.icons
-//      freedesktop.GetDataFilename()
-//      /usr/share/pixmaps
 
-
-
-//  Lookup an icon by name and desired size from a specific theme
+// Return whether the given name/size matches this icon or not, accounting
+// for icon type (fixed, scalable, or threshold).
 //
-func FindIconInTheme(name string, size int, themeName string) (Icon, bool) {
-    // Psuedocode from http://standards.freedesktop.org/icon-theme-spec/icon-theme-spec-latest.html
-    //
-    // for each subdir in $(theme subdir list) {
-    // for each directory in $(basename list) {
-    //   for extension in ("png", "svg", "xpm") {
-    //     if DirectoryMatchesSize(subdir, size) {
-    //       filename = directory/$(themename)/subdir/iconname.extension
-    //       if exist filename
-    //     return filename
-    //     }
-    //   }
-    // }
-    // }
-    // minimal_size = MAXINT
-    // for each subdir in $(theme subdir list) {
-    // for each directory in $(basename list) {
-    //   for extension in ("png", "svg", "xpm") {
-    //     filename = directory/$(themename)/subdir/iconname.extension
-    //     if exist filename and DirectorySizeDistance(subdir, size) < minimal_size {
-    //    closest_filename = filename
-    //    minimal_size = DirectorySizeDistance(subdir, size)
-    //     }
-    //   }
-    // }
-    // }
-    // if closest_filename set
-    //  return closest_filename
-    // return none
-    return Icon{}, false
+func (self *Icon) IsMatch(name string, size int) bool {
+//  non-matching name immediately fails
+    if self.Name != name {
+        return false
+    }
+
+//  test size details
+    switch self.Context.Type {
+//  fixed context: exact match only
+    case IconContextFixed:
+        return (self.Context.Size == size)
+
+//  scalable context: size between (min, max) inclusive
+    case IconContextScalable:
+        return (size >= self.Context.MinSize && size <= self.Context.MaxSize)
+
+//  threshold context: size between context Size +/- threshold
+    case IconContextThreshold:
+        return (size >= (self.Context.Size - self.Context.Threshold) && size <= (self.Context.Size + self.Context.Threshold))
+    }
+
+//  default false
+    return false
+}
+
+
+// Return the absolute difference between this icon and the given size
+//
+func (self *Icon) DistanceFromSize(size int) int {
+//  test size details
+    switch self.Context.Type {
+//  fixed context: exact match only
+    case IconContextFixed:
+        return int(math.Abs(float64(self.Context.Size - size)))
+
+//  scalable context: size between min and max (inclusive)
+    case IconContextScalable:
+        if size < self.Context.MinSize {
+            return (self.Context.MinSize - size)
+        }else if size > self.Context.MaxSize {
+            return (size - self.Context.MaxSize)
+        }
+
+//  threshold context: size between context Size +/- threshold
+    case IconContextThreshold:
+        if size < (self.Context.Size - self.Context.Threshold) {
+            return (self.Context.MinSize - size)
+        }else if size > (self.Context.Size + self.Context.Threshold) {
+            return (size - self.Context.MaxSize)
+        }
+    }
+
+//  fallback to zero distance
+    return 0
 }

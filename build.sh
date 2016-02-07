@@ -24,7 +24,7 @@ fi
 
 case "$1" in
 test)
-  go test
+  go test -v
 
   base="${PWD}"
 
