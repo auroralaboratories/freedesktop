@@ -61,6 +61,8 @@ func (self *Themeset) Load() error {
     return nil
 }
 
+// Locate an icon by name and preferred size, starting with the named theme and resursively
+// searching
 func (self *Themeset) FindIconViaTheme(themeName string, names []string, size int) (*Icon, bool) {
     if theme, ok := self.themeIndex[themeName]; ok {
         if icon, ok := theme.FindIcon(names, size); ok {

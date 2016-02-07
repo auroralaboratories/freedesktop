@@ -204,6 +204,9 @@ func (self *Theme) generateThemeDefinition() error {
         return fmt.Errorf("Unable to generate theme definition")
     }
 
+//  we're here! set spec defaults
+    self.Inherits = []string{ DEFAULT_ICONTHEME_INHERIT }
+
     return nil
 }
 
@@ -287,21 +290,3 @@ func (self *Theme) FindIcon(names []string, size int) (*Icon, bool) {
 
     return nil, false
 }
-
-// DirectorySizeDistance(subdir, size) {
-//   read Type and size data from subdir
-//   if Type is Fixed
-//     return abs(Size - iconsize)
-//   if Type is Scaled
-//     if iconsize < MinSize
-//         return MinSize - iconsize
-//     if iconsize > MaxSize
-//         return iconsize - MaxSize
-//     return 0
-//   if Type is Threshold
-//     if iconsize < Size - Threshold
-//         return MinSize - iconsize
-//     if iconsize > Size + Threshold
-//         return iconsize - MaxSize
-//     return 0
-// }
