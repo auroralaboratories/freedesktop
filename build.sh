@@ -23,6 +23,9 @@ if [ -s DEPENDENCIES ]; then
 fi
 
 case "$1" in
+fmt)
+  gofmt -w .
+  ;;
 test)
   go test -v
 

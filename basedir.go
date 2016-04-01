@@ -6,19 +6,19 @@
 package freedesktop
 
 import (
-    "fmt"
-    "os"
-    "path"
-    "strings"
-    "github.com/auroralaboratories/freedesktop/util"
-    // log "github.com/Sirupsen/logrus"
+	"fmt"
+	"github.com/auroralaboratories/freedesktop/util"
+	"os"
+	"path"
+	"strings"
+	// log "github.com/Sirupsen/logrus"
 )
 
 // The base directory relative to which user specific data files should be stored
-var XdgDataHome   string = util.Getenv(`XDG_DATA_HOME`,   os.ExpandEnv("${HOME}/.local/share"))
+var XdgDataHome string = util.Getenv(`XDG_DATA_HOME`, os.ExpandEnv("${HOME}/.local/share"))
 
 // The preference-ordered set of base directories to search for data files in addition to the XdgDataHome base directory
-var XdgDataDirs   string = util.Getenv(`XDG_DATA_DIRS`,   `/usr/local/share/:/usr/share/`)
+var XdgDataDirs string = util.Getenv(`XDG_DATA_DIRS`, `/usr/local/share/:/usr/share/`)
 
 // The base directory relative to which user specific configuration files should be stored
 var XdgConfigHome string = util.Getenv(`XDG_CONFIG_HOME`, os.ExpandEnv("${HOME}/.config"))
@@ -27,8 +27,7 @@ var XdgConfigHome string = util.Getenv(`XDG_CONFIG_HOME`, os.ExpandEnv("${HOME}/
 var XdgConfigDirs string = util.Getenv(`XDG_CONFIG_DIRS`, `/etc/xdg`)
 
 // The base directory relative to which user specific non-essential data files should be stored
-var XdgCacheHome  string = util.Getenv(`XDG_CACHE_HOME`,  os.ExpandEnv("${HOME}/.cache"))
-
+var XdgCacheHome string = util.Getenv(`XDG_CACHE_HOME`, os.ExpandEnv("${HOME}/.cache"))
 
 // Returns the filename of a data file located in a standard XDG location.
 // The name should be specified relative to whichever root it may live in.
@@ -41,20 +40,20 @@ var XdgCacheHome  string = util.Getenv(`XDG_CACHE_HOME`,  os.ExpandEnv("${HOME}/
 // An error will be returned if a file could not be located or is not readable.
 //
 func GetDataFilename(name string) (string, error) {
-//  clean up incoming path segment
-    name = strings.TrimPrefix(name, `/`)
+	//  clean up incoming path segment
+	name = strings.TrimPrefix(name, `/`)
 
-//  try to open the file path read-only, proceed until successful or last-error
-    for _, pathPrefix := range GetXdgDataPaths() {
-        tryPath := path.Join(pathPrefix, name)
+	//  try to open the file path read-only, proceed until successful or last-error
+	for _, pathPrefix := range GetXdgDataPaths() {
+		tryPath := path.Join(pathPrefix, name)
 
-        if util.FileExistsAndIsReadable(tryPath) {
-            return tryPath, nil
-        }
-    }
+		if util.FileExistsAndIsReadable(tryPath) {
+			return tryPath, nil
+		}
+	}
 
-//  if we got here, we didn't locate the file; return error
-    return ``, fmt.Errorf("Unable to locate XDG data file '%s' in any configured path", name)
+	//  if we got here, we didn't locate the file; return error
+	return ``, fmt.Errorf("Unable to locate XDG data file '%s' in any configured path", name)
 }
 
 // Returns the filename of a config file located in a standard XDG location.
@@ -68,20 +67,20 @@ func GetDataFilename(name string) (string, error) {
 // An error will be returned if a file could not be located or is not readable.
 //
 func GetConfigFilename(name string) (string, error) {
-//  clean up incoming path segment
-    name = strings.TrimPrefix(name, `/`)
+	//  clean up incoming path segment
+	name = strings.TrimPrefix(name, `/`)
 
-//  try to open the file path read-only, proceed until successful or last-error
-    for _, pathPrefix := range GetXdgConfigPaths() {
-        tryPath := path.Join(pathPrefix, name)
+	//  try to open the file path read-only, proceed until successful or last-error
+	for _, pathPrefix := range GetXdgConfigPaths() {
+		tryPath := path.Join(pathPrefix, name)
 
-        if util.FileExistsAndIsReadable(tryPath) {
-            return tryPath, nil
-        }
-    }
+		if util.FileExistsAndIsReadable(tryPath) {
+			return tryPath, nil
+		}
+	}
 
-//  if we got here, we didn't locate the file; return error
-    return ``, fmt.Errorf("Unable to locate XDG config file '%s' in any configured path", name)
+	//  if we got here, we didn't locate the file; return error
+	return ``, fmt.Errorf("Unable to locate XDG config file '%s' in any configured path", name)
 }
 
 // Returns the filename of a cache file located in a standard XDG location.
@@ -94,36 +93,35 @@ func GetConfigFilename(name string) (string, error) {
 // An error will be returned if a file could not be located or is not readable.
 //
 func GetCacheFilename(name string) (string, error) {
-    return ``, fmt.Errorf("Not implemented")
+	return ``, fmt.Errorf("Not implemented")
 }
-
 
 // Return all paths to search for XDG data files
 func GetXdgDataPaths() []string {
-    pathsToTry := make([]string, 0)
+	pathsToTry := make([]string, 0)
 
-    if XdgDataHome != `` {
-        pathsToTry = append(pathsToTry, strings.TrimSuffix(XdgDataHome, `/`))
-    }
+	if XdgDataHome != `` {
+		pathsToTry = append(pathsToTry, strings.TrimSuffix(XdgDataHome, `/`))
+	}
 
-    for _, dir := range strings.Split(XdgDataDirs, `:`) {
-        pathsToTry = append(pathsToTry, strings.TrimSuffix(dir, `/`))
-    }
+	for _, dir := range strings.Split(XdgDataDirs, `:`) {
+		pathsToTry = append(pathsToTry, strings.TrimSuffix(dir, `/`))
+	}
 
-    return pathsToTry
+	return pathsToTry
 }
 
 // Return all paths to search for XDG config files
 func GetXdgConfigPaths() []string {
-    pathsToTry := make([]string, 0)
+	pathsToTry := make([]string, 0)
 
-    if XdgConfigHome != `` {
-        pathsToTry = append(pathsToTry, strings.TrimSuffix(XdgConfigHome, `/`))
-    }
+	if XdgConfigHome != `` {
+		pathsToTry = append(pathsToTry, strings.TrimSuffix(XdgConfigHome, `/`))
+	}
 
-    for _, dir := range strings.Split(XdgConfigDirs, `:`) {
-        pathsToTry = append(pathsToTry, strings.TrimSuffix(dir, `/`))
-    }
+	for _, dir := range strings.Split(XdgConfigDirs, `:`) {
+		pathsToTry = append(pathsToTry, strings.TrimSuffix(dir, `/`))
+	}
 
-    return pathsToTry
+	return pathsToTry
 }
