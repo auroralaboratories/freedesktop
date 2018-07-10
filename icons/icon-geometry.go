@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/shutterstock/go-stockutil/stringutil"
+	"github.com/ghetzel/go-stockutil/stringutil"
 )
 
 type Point struct {

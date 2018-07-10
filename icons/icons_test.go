@@ -54,10 +54,10 @@ func TestFindIconFromTheme(t *testing.T) {
 		}
 
 		if baseTheme != nil {
-			if icon, ok := baseTheme.FindIcon([]string{`dropbox`}, 40); ok {
+			if icon, ok := baseTheme.FindIcon([]string{`terminal-bell`}, 40); ok {
 				t.Logf("Got icon: %+v", icon)
 			} else {
-				t.Errorf("Could not find 16x16 blank icon")
+				t.Errorf("Could not find 16x16 icon 'terminal-bell'")
 			}
 
 		} else {

@@ -1,8 +1,13 @@
-all: fmt test
+all: deps fmt test
+
+deps:
+	@go list golang.org/x/tools/cmd/goimports || go get golang.org/x/tools/cmd/goimports
+	go get ./...
 
 fmt:
-	./build.sh fmt
+	goimports -w .
+	go vet .
 
 test:
-	./build.sh test
+	go test -race ./...
 

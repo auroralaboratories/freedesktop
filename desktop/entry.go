@@ -40,7 +40,7 @@ func (self *Entry) Launch() error {
 
 	if args, err := parser.Parse(self.Exec); err == nil {
 		exe := args[0]
-		args := args[1:len(args)]
+		args := args[1:]
 
 		cmd := exec.Command(exe, args...)
 

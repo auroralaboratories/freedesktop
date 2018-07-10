@@ -8,8 +8,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/shutterstock/go-stockutil/stringutil"
-	"github.com/vaughan0/go-ini"
+	"github.com/ghetzel/go-stockutil/stringutil"
+	ini "github.com/vaughan0/go-ini"
 )
 
 type EntrySet struct {

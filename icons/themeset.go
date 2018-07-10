@@ -5,7 +5,7 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/shutterstock/go-stockutil/sliceutil"
+	"github.com/ghetzel/go-stockutil/sliceutil"
 )
 
 const (

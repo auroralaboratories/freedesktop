@@ -7,10 +7,11 @@ package freedesktop
 
 import (
 	"fmt"
-	"github.com/auroralaboratories/freedesktop/util"
 	"os"
 	"path"
 	"strings"
+
+	"github.com/auroralaboratories/freedesktop/util"
 	// log "github.com/Sirupsen/logrus"
 )
 
@@ -93,7 +94,7 @@ func GetConfigFilename(name string) (string, error) {
 // An error will be returned if a file could not be located or is not readable.
 //
 func GetCacheFilename(name string) (string, error) {
-	return ``, fmt.Errorf("Not implemented")
+	return path.Join(XdgCacheHome, name), nil
 }
 
 // Return all paths to search for XDG data files

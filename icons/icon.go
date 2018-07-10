@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vaughan0/go-ini"
+	ini "github.com/vaughan0/go-ini"
 )
 
 type Icon struct {
